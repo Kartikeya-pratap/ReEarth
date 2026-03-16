@@ -1,0 +1,18 @@
+# ============================================================
+#  ReEarth — .gitignore
+#  Files listed here are NEVER uploaded to GitHub
+# ============================================================
+
+# API Keys — keep private!
+js/config.js
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
