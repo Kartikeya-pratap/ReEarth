@@ -1,20 +1,4 @@
-/**
- * ============================================
- * ReEarth — E-Waste & Solid Waste Management
- * app.js — Full API Integration v2.0
- * ============================================
- */
-
-// ============================================================
-//  ⚙️  CONFIG is loaded from js/config.js
-//  That file is in .gitignore so API keys are never uploaded
-//  to GitHub. See js/config.example.js for the template.
-// ============================================================
-
-
-// ============================================================
-//  MODULE: Navigation
-// ============================================================
+//  Navigation Module
 const Navigation = {
     navbar: null, navToggle: null, navLinks: null, lastScrollY: 0,
 
@@ -64,9 +48,7 @@ const Navigation = {
 };
 
 
-// ============================================================
-//  MODULE: HeroAnimations  (Real data from Supabase)
-// ============================================================
+//  Hero Section Animations
 const HeroAnimations = {
     init() {
         this._particles();
@@ -89,7 +71,7 @@ const HeroAnimations = {
     },
 
     async _loadRealStats() {
-        // Safely attempt Supabase read — if table missing or RLS blocks, use HTML defaults silently
+        // Load real stats from database
         try {
             if (!CONFIG.SUPABASE_URL || CONFIG.SUPABASE_URL.startsWith('PASTE_')) {
                 this._animateAll(); return;
@@ -98,26 +80,42 @@ const HeroAnimations = {
             const { data: rows, error } = await db.from('pickups').select('weight_kg');
 
             if (error) {
-                // Table not created yet or RLS blocking — silently use HTML defaults
+                this._applyDemoHeroStats();
                 this._animateAll(); return;
             }
 
             const totalPickups = rows.length;
             const totalTons    = Math.round(rows.reduce((s, r) => s + (r.weight_kg || 0), 0) / 10) / 100;
 
-            document.querySelectorAll('.hero-stat').forEach(stat => {
-                const label = stat.querySelector('.hero-stat-label')?.textContent.trim();
-                const numEl = stat.querySelector('.hero-stat-number');
-                if (!numEl) return;
-                if (label === 'Tons Recycled')     numEl.dataset.target = Math.round(totalTons);
-                if (label === 'Pickups Completed')  numEl.dataset.target = totalPickups;
-                if (label === 'Partner Centers')    numEl.dataset.target = 5;
-            });
+            // Show demo stats if no real data yet
+            if (totalPickups === 0) {
+                this._applyDemoHeroStats();
+            } else {
+                document.querySelectorAll('.hero-stat').forEach(stat => {
+                    const label = stat.querySelector('.hero-stat-label')?.textContent.trim();
+                    const numEl = stat.querySelector('.hero-stat-number');
+                    if (!numEl) return;
+                    if (label === 'Tons Recycled')     numEl.dataset.target = Math.round(totalTons);
+                    if (label === 'Pickups Completed')  numEl.dataset.target = totalPickups;
+                    if (label === 'Partner Centers')    numEl.dataset.target = 5;
+                });
+            }
         } catch (err) {
-            // Any network/config error — silently fall back to HTML defaults
+            this._applyDemoHeroStats();
         } finally {
             this._animateAll();
         }
+    },
+
+    _applyDemoHeroStats() {
+        document.querySelectorAll('.hero-stat').forEach(stat => {
+            const label = stat.querySelector('.hero-stat-label')?.textContent.trim();
+            const numEl = stat.querySelector('.hero-stat-number');
+            if (!numEl) return;
+            if (label === 'Tons Recycled')     numEl.dataset.target = 12450;
+            if (label === 'Pickups Completed') numEl.dataset.target = 3200;
+            if (label === 'Partner Centers')   numEl.dataset.target = 89;
+        });
     },
 
     _animateAll() {
@@ -143,9 +141,7 @@ const HeroAnimations = {
 };
 
 
-// ============================================================
-//  MODULE: AIClassifier  (Gemini API)
-// ============================================================
+//  AI Waste Classifier
 const AIClassifier = {
     _b64: null, _mime: null, _tick: null,
 
@@ -243,7 +239,7 @@ Required JSON schema:
     },
 
     async _callImage() {
-        const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+        const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
         const body = {
             contents: [{ role: 'user', parts: [
                 { text: this._prompt() },
@@ -256,7 +252,7 @@ Required JSON schema:
     },
 
     async _callText(desc) {
-        const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+        const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
         const body = {
             contents: [{ role: 'user', parts: [
                 { text: this._prompt() },
@@ -355,9 +351,7 @@ Required JSON schema:
 };
 
 
-// ============================================================
-//  MODULE: GeocodingService  (OpenCage)
-// ============================================================
+//  Geocoding Service
 const GeocodingService = {
     async getCoordinates(address) {
         if (!CONFIG.OPENCAGE_API_KEY || CONFIG.OPENCAGE_API_KEY.startsWith('PASTE_')) {
@@ -377,9 +371,7 @@ const GeocodingService = {
 };
 
 
-// ============================================================
-//  MODULE: PickupScheduler  (Supabase)
-// ============================================================
+//  Pickup Scheduler
 const PickupScheduler = {
     _db: null,
 
@@ -395,7 +387,7 @@ const PickupScheduler = {
             if (typeof window.supabase !== 'undefined' &&
                 CONFIG.SUPABASE_URL && !CONFIG.SUPABASE_URL.startsWith('PASTE_')) {
                 this._db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-                console.info('✅ Supabase connected.');
+                console.info('Database connected.');
             } else {
                 console.warn('⚠️ Supabase not configured — demo mode.');
             }
@@ -462,7 +454,7 @@ const PickupScheduler = {
         if (!this._db) { console.info('Demo mode — payload:', payload); return; }
         const { error } = await this._db.from('pickups').insert([payload]);
         if (error) throw new Error(`DB error: ${error.message}`);
-        console.info('✅ Saved to Supabase.');
+        console.info('Data saved successfully.');
     },
 
     _showModal(p) {
@@ -490,26 +482,43 @@ const PickupScheduler = {
 };
 
 
-// ============================================================
-//  MODULE: ImpactMetrics  (Real data from Supabase)
-// ============================================================
+//  Impact Metrics
 const ImpactMetrics = {
     init() {
         this._loadRealMetrics();
         this._bars();
     },
 
+    // Demo data shown when no real Supabase data exists
+    // Represents sample environmental impact for class presentation
+    _demoMetrics: {
+        'Lead (Pb) Diverted':        { target: 2847,  suffix: ' kg',    prefix: '' },
+        'Mercury (Hg) Captured':     { target: 156,   suffix: ' kg',    prefix: '' },
+        'CO₂ Emissions Saved':       { target: 34500, suffix: ' tons',  prefix: '' },
+        'Water Protected':           { target: 890,   suffix: 'K L',    prefix: '' },
+        'Batteries Recycled':        { target: 4230,  suffix: ' units', prefix: '' },
+        'Precious Metals Recovered': { target: 1250,  suffix: 'K',      prefix: '$' },
+    },
+
     async _loadRealMetrics() {
         try {
             if (!CONFIG.SUPABASE_URL || CONFIG.SUPABASE_URL.startsWith('PASTE_')) {
+                this._applyDemoMetrics();
                 this._animateMetrics(); return;
             }
             const db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
             const { data, error } = await db.from('pickups').select('weight_kg, waste_type');
 
-            // Table not created yet or RLS blocking — silently use HTML defaults
-            if (error) { this._setTrends([]); this._animateMetrics(); return; }
+            // Handle database errors gracefully
+            if (error) { this._applyDemoMetrics(); this._setTrends([]); this._animateMetrics(); return; }
             const rows        = data || [];
+
+            // If no real data yet, show demo data for presentation
+            if (rows.length === 0) {
+                this._applyDemoMetrics();
+                this._animateMetrics(); return;
+            }
+
             const totalWeight = rows.reduce((s, r) => s + (r.weight_kg || 0), 0);
             const metricMap = {
                 'Lead (Pb) Diverted':        { target: Math.round(totalWeight * 0.023),  suffix: ' kg',    prefix: '' },
@@ -537,6 +546,23 @@ const ImpactMetrics = {
         } finally {
             this._animateMetrics();
         }
+    },
+
+    // Apply demo/sample metrics for presentation purposes
+    _applyDemoMetrics() {
+        document.querySelectorAll('.metric-card').forEach(card => {
+            const label = card.querySelector('.metric-label')?.textContent.trim();
+            const numEl = card.querySelector('.metric-number');
+            if (!numEl || !this._demoMetrics[label]) return;
+            const m = this._demoMetrics[label];
+            numEl.dataset.target = m.target;
+            numEl.dataset.suffix = m.suffix;
+            numEl.dataset.prefix = m.prefix;
+        });
+        // Show demo trend text
+        document.querySelectorAll('.trend-value').forEach(el => {
+            el.textContent = 'Demo data';
+        });
     },
 
     // Calculate real trend % — this month vs last month
@@ -611,9 +637,7 @@ const ImpactMetrics = {
 };
 
 
-// ============================================================
-//  MODULE: MapSection  (Leaflet + Hardcoded Centers)
-// ============================================================
+//  Map Section
 const MapSection = {
     _map:        null,
     _userMarker: null,
@@ -779,9 +803,7 @@ const MapSection = {
 };
 
 
-// ============================================================
-//  MODULE: ScrollAnimations
-// ============================================================
+//  Scroll Animations
 const ScrollAnimations = {
     init() {
         const els = document.querySelectorAll(
@@ -804,9 +826,7 @@ const ScrollAnimations = {
 };
 
 
-// ============================================================
-//  BOOT
-// ============================================================
+//  Initialize
 document.addEventListener('DOMContentLoaded', () => {
     Navigation.init();
     HeroAnimations.init();
