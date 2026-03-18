@@ -4,7 +4,7 @@
  */
 const ReEarthChatbot = (() => {
 
-    const GEMINI_KEY = () => window.CONFIG?.GEMINI_API_KEY || ''
+    const GEMINI_KEY = () => window.CONFIG?.GEMINI_API_KEY || 'AIzaSyClfCWSP_02G4eX4PEKxhrvYhz1K9-dFxM'
     const SYSTEM_PROMPT = `You are EcoBot, the friendly AI assistant for ReEarth — an EIA mitigation platform for e-waste and solid waste management in India.
 
 Your personality: helpful, knowledgeable, concise, eco-conscious. Use occasional relevant emojis.
